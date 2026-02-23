@@ -1,0 +1,913 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>市場センチメント分析</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;700;900&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* ══════════════════════════════════════
+   CSS テーマ変数
+══════════════════════════════════════ */
+:root {
+  --bg:       #f1f5f9;
+  --bg2:      #ffffff;
+  --bg3:      #f8fafc;
+  --border:   #e2e8f0;
+  --text1:    #1e293b;
+  --text2:    #475569;
+  --text3:    #94a3b8;
+  --text4:    #cbd5e1;
+  --accent:   #0ea5e9;
+  --accent2:  #6366f1;
+  --accbg:    #e0f2fe;
+  --acctext:  #0369a1;
+  --navbg:    rgba(255,255,255,0.97);
+  --card-sh:  0 1px 4px rgba(0,0,0,0.06);
+  --btn-dis:  #f1f5f9; --btn-dtxt: #94a3b8;
+  --warn-bg:  #fffbeb; --warn-bd: #fde68a; --warn-tx: #78350f;
+  --err-bg:   #fef2f2; --err-bd:  #fecaca; --err-tx:  #dc2626;
+}
+[data-theme="dark"] {
+  --bg:       #080f1a;
+  --bg2:      #0f1e2e;
+  --bg3:      #091626;
+  --border:   rgba(255,255,255,0.1);
+  --text1:    #f1f5f9;
+  --text2:    #94a3b8;
+  --text3:    #475569;
+  --text4:    #334155;
+  --accent:   #38bdf8;
+  --accent2:  #818cf8;
+  --accbg:    rgba(56,189,248,0.12);
+  --acctext:  #38bdf8;
+  --navbg:    rgba(8,15,26,0.98);
+  --card-sh:  none;
+  --btn-dis:  #1e293b; --btn-dtxt: #475569;
+  --warn-bg:  rgba(251,191,36,0.08); --warn-bd: rgba(251,191,36,0.3); --warn-tx: #fbbf24;
+  --err-bg:   rgba(248,113,113,0.1); --err-bd:  rgba(248,113,113,0.3); --err-tx: #fca5a5;
+}
+[data-theme="solarized-light"] {
+  --bg:       #fdf6e3;
+  --bg2:      #eee8d5;
+  --bg3:      #f5efdc;
+  --border:   #d9cdb4;
+  --text1:    #073642;
+  --text2:    #586e75;
+  --text3:    #839496;
+  --text4:    #93a1a1;
+  --accent:   #268bd2;
+  --accent2:  #2aa198;
+  --accbg:    #deeef9;
+  --acctext:  #1a6fa8;
+  --navbg:    rgba(253,246,227,0.97);
+  --card-sh:  0 1px 4px rgba(7,54,66,0.08);
+  --btn-dis:  #eee8d5; --btn-dtxt: #93a1a1;
+  --warn-bg:  #fdf3d0; --warn-bd: #e8c84a; --warn-tx: #7a5c00;
+  --err-bg:   #fde8e8; --err-bd:  rgba(220,50,47,0.4); --err-tx: #b02020;
+}
+[data-theme="solarized-dark"] {
+  --bg:       #002b36;
+  --bg2:      #073642;
+  --bg3:      #00303c;
+  --border:   #0d4f5e;
+  --text1:    #fdf6e3;
+  --text2:    #eee8d5;
+  --text3:    #839496;
+  --text4:    #586e75;
+  --accent:   #268bd2;
+  --accent2:  #2aa198;
+  --accbg:    rgba(38,139,210,0.15);
+  --acctext:  #6fb3e8;
+  --navbg:    rgba(0,43,54,0.98);
+  --card-sh:  none;
+  --btn-dis:  #073642; --btn-dtxt: #586e75;
+  --warn-bg:  rgba(181,137,0,0.12); --warn-bd: rgba(181,137,0,0.35); --warn-tx: #b58900;
+  --err-bg:   rgba(220,50,47,0.12); --err-bd:  rgba(220,50,47,0.35); --err-tx: #dc322f;
+}
+
+/* ══════════════════════════════════════
+   リセット・ベース
+══════════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  font-family: 'Noto Sans JP', sans-serif;
+  background: var(--bg);
+  color: var(--text1);
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: touch;
+  transition: background 0.25s, color 0.25s;
+}
+a { text-decoration: none; }
+button, textarea { font-family: inherit; }
+#app { max-width: 500px; margin: 0 auto; }
+
+/* ══════════════════════════════════════
+   スクリーン
+══════════════════════════════════════ */
+.screen { display: none; padding: 1.1rem 0.9rem 5.5rem; animation: fadeIn 0.2s ease; }
+.screen.active { display: block; }
+@keyframes fadeIn { from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:translateY(0);} }
+
+/* ══════════════════════════════════════
+   ヒーロー
+══════════════════════════════════════ */
+.hero {
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+  border-radius: 18px; padding: 1.2rem 1.1rem;
+  margin-bottom: 1.25rem; position: relative; overflow: hidden;
+}
+.hero::after {
+  content:''; position:absolute; top:-40px; right:-40px;
+  width:140px; height:140px; border-radius:50%;
+  background:rgba(255,255,255,0.08);
+}
+.hero-sub { font-size:0.68rem; color:rgba(255,255,255,0.65); letter-spacing:0.1em; margin-bottom:0.4rem; }
+.hero h1 { font-family:'Zen Kaku Gothic New',sans-serif; font-size:1.3rem; font-weight:900; color:#fff; line-height:1.25; }
+.hero p { font-size:0.73rem; color:rgba(255,255,255,0.7); margin-top:0.4rem; }
+
+/* ══════════════════════════════════════
+   市場セレクター
+══════════════════════════════════════ */
+.market-selector {
+  display: flex; gap: 0.4rem; margin-bottom: 1.25rem;
+  overflow-x: auto; padding-bottom: 2px;
+  scrollbar-width: none;
+}
+.market-selector::-webkit-scrollbar { display: none; }
+.mkt-btn {
+  display: flex; align-items: center; gap: 0.35rem;
+  padding: 0.45rem 0.85rem;
+  border-radius: 20px; border: 1.5px solid var(--border);
+  background: var(--bg2); cursor: pointer;
+  font-size: 0.78rem; font-weight: 600;
+  color: var(--text3); white-space: nowrap;
+  transition: all 0.15s; -webkit-tap-highlight-color: transparent;
+  box-shadow: var(--card-sh);
+  font-family: 'Noto Sans JP', sans-serif;
+}
+.mkt-btn.on { border-color: var(--accent); background: var(--accbg); color: var(--acctext); }
+
+/* ══════════════════════════════════════
+   セクション
+══════════════════════════════════════ */
+.section-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:0.6rem; }
+.section-label { font-family:'Zen Kaku Gothic New',sans-serif; font-size:0.8rem; font-weight:700; color:var(--text1); }
+.badge { background:var(--accbg); color:var(--acctext); font-size:0.68rem; font-weight:700; padding:0.15rem 0.55rem; border-radius:20px; }
+
+/* ══════════════════════════════════════
+   参加者グリッド
+══════════════════════════════════════ */
+.participants { display:grid; grid-template-columns:1fr 1fr; gap:0.5rem; margin-bottom:1.25rem; }
+.p-card {
+  background:var(--bg2); border:1.5px solid var(--border); border-radius:12px;
+  padding:0.75rem 0.7rem; cursor:pointer; text-align:left;
+  transition:all 0.15s; -webkit-tap-highlight-color:transparent;
+  position:relative; box-shadow:var(--card-sh);
+}
+.p-icon { font-size:1.2rem; margin-bottom:0.25rem; }
+.p-name { font-family:'Zen Kaku Gothic New',sans-serif; font-size:0.8rem; font-weight:700; margin-bottom:0.15rem; transition:color 0.15s; }
+.p-desc { font-size:0.67rem; color:var(--text3); line-height:1.3; }
+.p-check { position:absolute; top:0.4rem; right:0.4rem; width:18px; height:18px; border-radius:50%; display:none; align-items:center; justify-content:center; font-size:0.65rem; color:#fff; font-weight:700; }
+.p-card.on .p-check { display:flex; }
+
+/* ══════════════════════════════════════
+   分析テーマリスト
+══════════════════════════════════════ */
+.themes { display:flex; flex-direction:column; gap:0.4rem; margin-bottom:1rem; }
+.t-btn {
+  background:var(--bg2); border:1.5px solid var(--border); border-radius:10px;
+  padding:0.65rem 0.85rem; cursor:pointer; text-align:left;
+  display:flex; align-items:center; gap:0.55rem;
+  -webkit-tap-highlight-color:transparent; transition:all 0.15s; box-shadow:var(--card-sh);
+}
+.t-btn.on { background:var(--accbg); border-color:var(--accent); }
+.t-emoji { font-size:1rem; }
+.t-text { font-size:0.83rem; color:var(--text2); transition:color 0.15s; }
+.t-btn.on .t-text { color:var(--acctext); font-weight:600; }
+
+/* ══════════════════════════════════════
+   テキストエリア
+══════════════════════════════════════ */
+.custom-area { margin-bottom:1.2rem; }
+.custom-area textarea {
+  width:100%; background:var(--bg3); border:1.5px solid var(--border);
+  border-radius:10px; color:var(--text1); padding:0.75rem; font-size:0.85rem;
+  outline:none; resize:none; transition:border 0.15s,background 0.15s;
+}
+.custom-area textarea:focus { border-color:var(--accent); background:var(--bg2); }
+.custom-area textarea::placeholder { color:var(--text4); }
+
+/* ══════════════════════════════════════
+   実行ボタン
+══════════════════════════════════════ */
+.run-btn {
+  width:100%; background:linear-gradient(135deg,var(--accent) 0%,var(--accent2) 100%);
+  border:none; border-radius:14px; padding:1rem; color:#fff;
+  font-size:1rem; font-weight:800; font-family:'Zen Kaku Gothic New',sans-serif;
+  letter-spacing:0.06em; cursor:pointer;
+  box-shadow:0 6px 24px rgba(14,165,233,0.3); transition:all 0.2s;
+  -webkit-tap-highlight-color:transparent;
+}
+.run-btn:disabled { background:var(--btn-dis); color:var(--btn-dtxt); box-shadow:none; cursor:not-allowed; }
+.run-btn:not(:disabled):active { transform:scale(0.98); }
+.error-box { background:var(--err-bg); border:1.5px solid var(--err-bd); border-radius:8px; padding:0.75rem; color:var(--err-tx); font-size:0.83rem; margin-bottom:0.8rem; }
+
+/* ══════════════════════════════════════
+   ローダー
+══════════════════════════════════════ */
+.loader { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:60vh; gap:1.5rem; }
+.dots { display:flex; gap:8px; }
+.dot { width:10px; height:10px; border-radius:50%; background:var(--accent); animation:bounce 1.2s ease-in-out infinite; }
+.dot:nth-child(2){animation-delay:0.2s;}.dot:nth-child(3){animation-delay:0.4s;}
+@keyframes bounce{0%,80%,100%{transform:translateY(0);opacity:0.3;}40%{transform:translateY(-8px);opacity:1;}}
+.loader-text { font-size:0.85rem; color:var(--text3); }
+
+/* ══════════════════════════════════════
+   結果
+══════════════════════════════════════ */
+.result-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; }
+.result-header h2 { font-family:'Zen Kaku Gothic New',sans-serif; font-size:1.05rem; font-weight:800; }
+.result-header .meta { font-size:0.7rem; color:var(--text3); margin-top:0.2rem; }
+.copy-btn { background:var(--accbg); border:1.5px solid var(--border); border-radius:8px; padding:0.45rem 0.8rem; color:var(--acctext); font-size:0.75rem; font-weight:600; cursor:pointer; -webkit-tap-highlight-color:transparent; }
+.result-body { background:var(--bg2); border:1.5px solid var(--border); border-radius:14px; padding:1.1rem; box-shadow:var(--card-sh); line-height:1.85; }
+.result-body h3 { color:var(--accent); font-size:0.95rem; font-weight:700; margin-top:1.4rem; margin-bottom:0.35rem; }
+.result-body h3:first-child { margin-top:0; }
+.result-body .bullet { display:flex; gap:0.5rem; padding:0.15rem 0 0.15rem 0.25rem; }
+.result-body .bullet::before { content:'▸'; color:var(--accent); flex-shrink:0; margin-top:0.1rem; }
+.result-body p { color:var(--text2); font-size:0.88rem; margin:0.18rem 0; }
+.result-body strong { color:var(--text1); font-weight:700; }
+.back-btn { width:100%; margin-top:1rem; background:var(--bg2); border:1.5px solid var(--border); border-radius:10px; padding:0.75rem; color:var(--text2); font-size:0.85rem; cursor:pointer; font-family:'Zen Kaku Gothic New',sans-serif; -webkit-tap-highlight-color:transparent; box-shadow:var(--card-sh); }
+
+/* ══════════════════════════════════════
+   データ源
+══════════════════════════════════════ */
+.source-card { display:flex; align-items:center; gap:0.8rem; background:var(--bg2); border:1.5px solid var(--border); border-radius:12px; padding:0.8rem 0.9rem; margin-bottom:0.55rem; box-shadow:var(--card-sh); -webkit-tap-highlight-color:transparent; }
+.source-icon { width:38px; height:38px; border-radius:10px; background:var(--accbg); display:flex; align-items:center; justify-content:center; font-size:1.2rem; flex-shrink:0; }
+.source-name { font-size:0.85rem; color:var(--acctext); font-weight:600; margin-bottom:0.1rem; }
+.source-meta { display:flex; gap:0.4rem; align-items:center; }
+.source-tag { background:var(--accbg); color:var(--acctext); font-size:0.62rem; font-weight:700; padding:0.1rem 0.4rem; border-radius:4px; }
+.source-note { font-size:0.68rem; color:var(--text3); }
+.source-arrow { color:var(--text4); font-size:0.9rem; flex-shrink:0; margin-left:auto; }
+.disclaimer { background:var(--warn-bg); border:1.5px solid var(--warn-bd); border-radius:12px; padding:0.9rem; margin-top:1rem; }
+.disclaimer-title { font-size:0.8rem; font-weight:700; color:var(--warn-tx); margin-bottom:0.35rem; }
+.disclaimer p { font-size:0.76rem; color:var(--warn-tx); line-height:1.7; }
+
+/* ══════════════════════════════════════
+   ナビゲーションバー
+══════════════════════════════════════ */
+nav {
+  position:fixed; bottom:0; left:50%; transform:translateX(-50%);
+  width:100%; max-width:500px;
+  background:var(--navbg); border-top:1px solid var(--border);
+  display:flex; align-items:stretch;
+  backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px);
+  z-index:100;
+  padding-bottom:env(safe-area-inset-bottom);
+  box-shadow:0 -4px 20px rgba(0,0,0,0.07);
+}
+.nav-btn {
+  flex:1; border:none; background:transparent;
+  padding:0.7rem 0;
+  display:flex; flex-direction:column; align-items:center; gap:0.2rem;
+  cursor:pointer; position:relative;
+  -webkit-tap-highlight-color:transparent;
+}
+.nav-btn:disabled { opacity:0.3; cursor:not-allowed; }
+.nav-indicator { position:absolute; top:0; left:50%; transform:translateX(-50%); width:2.2rem; height:3px; background:var(--accent); border-radius:0 0 3px 3px; display:none; }
+.nav-btn.active .nav-indicator { display:block; }
+.nav-icon { font-size:1.2rem; }
+.nav-label { font-size:0.68rem; letter-spacing:0.04em; color:var(--text3); }
+.nav-btn.active .nav-label { color:var(--accent); font-weight:700; }
+
+/* テーマボタン：左に仕切り線を入れてタブと区別 */
+#themeNavBtn {
+  flex:1; border:none; border-left:1.5px solid var(--border);
+  background:transparent; padding:0.7rem 0;
+  display:flex; flex-direction:column; align-items:center; gap:0.2rem;
+  cursor:pointer; -webkit-tap-highlight-color:transparent;
+  transition:background 0.15s;
+}
+#themeNavBtn .nav-icon  { font-size:1.2rem; }
+#themeNavBtn .nav-label { font-size:0.68rem; letter-spacing:0.04em; color:var(--text3); }
+#themeNavBtn.open { background:var(--accbg); }
+#themeNavBtn.open .nav-label { color:var(--acctext); font-weight:700; }
+
+/* ══════════════════════════════════════
+   テーマドロップダウン
+   body直下 position:fixed で z-index 競合を完全回避
+══════════════════════════════════════ */
+#themeOverlay {
+  display:none; position:fixed; inset:0; z-index:9000;
+}
+#themeOverlay.open { display:block; }
+
+#themeDropdown {
+  display:none; position:fixed;
+  bottom:72px; right:8px;
+  background:var(--bg2); border:1.5px solid var(--border);
+  border-radius:14px; overflow:hidden;
+  min-width:190px;
+  box-shadow:0 -4px 32px rgba(0,0,0,0.16), 0 2px 8px rgba(0,0,0,0.08);
+  z-index:9001;
+}
+#themeDropdown.open { display:block; animation:dropUp 0.15s ease; }
+@keyframes dropUp{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+
+.ui-option {
+  display:flex; align-items:center; gap:0.7rem;
+  padding:0.82rem 1rem;
+  cursor:pointer; font-size:0.85rem;
+  color:var(--text2); border:none; background:transparent;
+  width:100%; text-align:left;
+  font-family:'Noto Sans JP',sans-serif;
+  -webkit-tap-highlight-color:transparent;
+}
+.ui-option:not(:last-child) { border-bottom:1px solid var(--border); }
+.ui-option.active { color:var(--acctext); font-weight:700; background:var(--accbg); }
+.ui-dot { width:12px; height:12px; border-radius:50%; flex-shrink:0; border:2px solid rgba(128,128,128,0.2); }
+.ui-check { margin-left:auto; font-size:0.8rem; color:var(--accent); }
+</style>
+</head>
+<body>
+
+<div id="app">
+
+  <!-- 分析スクリーン -->
+  <div id="screen-home" class="screen active">
+    <div class="hero">
+      <div class="hero-sub" id="heroDate"></div>
+      <h1>市場参加者<br>センチメント分析</h1>
+      <p>AI駆動 ◆ 投資家心理 ◆ テクニカル統合</p>
+    </div>
+    <!-- APIキー入力 -->
+    <div id="apiKeySection" style="margin-bottom:1.1rem">
+      <div class="section-head" style="margin-bottom:0.5rem">
+        <span class="section-label">🔑 Anthropic APIキー</span>
+        <button id="apiKeyToggle" onclick="toggleApiKeyVisibility()"
+          style="background:none;border:none;cursor:pointer;font-size:0.75rem;color:var(--text3);padding:0">表示</button>
+      </div>
+      <div style="position:relative">
+        <input id="apiKeyInput" type="password"
+          placeholder="sk-ant-api03-..."
+          oninput="saveApiKey()"
+          style="width:100%;background:var(--bg3);border:1.5px solid var(--border);border-radius:10px;
+                 color:var(--text1);padding:0.75rem 2.5rem 0.75rem 0.75rem;font-size:0.82rem;
+                 outline:none;font-family:'Noto Sans JP',sans-serif;transition:border 0.15s">
+        <span id="apiKeyStatus" style="position:absolute;right:0.75rem;top:50%;transform:translateY(-50%);font-size:1rem"></span>
+      </div>
+      <p style="font-size:0.68rem;color:var(--text3);margin-top:0.4rem;line-height:1.6">
+        <a href="https://console.anthropic.com/settings/keys" target="_blank" style="color:var(--accent)">console.anthropic.com</a> で取得。端末内にのみ保存されます。
+      </p>
+    </div>
+    <!-- 市場セレクター -->
+    <div class="market-selector" id="marketSelector"></div>
+    <div class="section-head">
+      <span class="section-label">分析対象の参加者</span>
+      <span class="badge" id="selBadge">3 / 6 選択</span>
+    </div>
+    <div class="participants" id="participantGrid"></div>
+    <div class="section-head" style="margin-bottom:0.6rem">
+      <span class="section-label">分析テーマ</span>
+    </div>
+    <div class="themes" id="themeList"></div>
+    <div class="custom-area">
+      <div class="section-label" style="margin-bottom:0.5rem">または自由入力</div>
+      <textarea id="customInput" rows="3" placeholder="例：今週のFOMC後の反応を参加者別に予測して" oninput="onCustomInput()"></textarea>
+    </div>
+    <div class="error-box" id="homeError" style="display:none"></div>
+    <button class="run-btn" id="runBtn" onclick="startAnalysis()">🚀 AI分析を実行</button>
+  </div>
+
+  <!-- 結果スクリーン -->
+  <div id="screen-result" class="screen">
+    <div class="result-header">
+      <div>
+        <h2>分析レポート</h2>
+        <div class="meta" id="resultMeta"></div>
+      </div>
+      <button class="copy-btn" id="copyBtn" onclick="copyResult()" style="display:none">📋 コピー</button>
+    </div>
+    <div id="loaderEl" class="loader">
+      <div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+      <div class="loader-text">市場データを分析中...</div>
+    </div>
+    <div id="resultBody" class="result-body" style="display:none"></div>
+    <div class="error-box" id="resultError" style="display:none"></div>
+    <button class="back-btn" id="backBtn" onclick="goHome()" style="display:none">← 新しい分析を設定</button>
+  </div>
+
+  <!-- データ源スクリーン -->
+  <div id="screen-sources" class="screen">
+    <h2 style="font-family:'Zen Kaku Gothic New',sans-serif;font-size:1.05rem;font-weight:800;margin-bottom:0.3rem">実データの確認先</h2>
+    <p style="font-size:0.78rem;color:var(--text3);margin-bottom:0.9rem">AIが参照する主要データソース一覧</p>
+    <div class="market-selector" id="sourceMarketFilter"></div>
+    <div id="sourceList"></div>
+    <div class="disclaimer">
+      <div class="disclaimer-title">⚠️ 免責事項</div>
+      <p>本ツールのAI分析は投資の枠組み提供を目的とします。実際の投資判断は上記サイトの最新データを確認の上、ご自身の責任で行ってください。投資には元本毀損リスクがあります。</p>
+    </div>
+  </div>
+
+  <!-- ナビゲーションバー -->
+  <nav>
+    <button class="nav-btn active" id="nav-home" onclick="showScreen('home')">
+      <div class="nav-indicator"></div>
+      <span class="nav-icon">🎯</span>
+      <span class="nav-label">分析</span>
+    </button>
+    <button class="nav-btn" id="nav-result" onclick="showScreen('result')" disabled>
+      <div class="nav-indicator"></div>
+      <span class="nav-icon">📋</span>
+      <span class="nav-label">結果</span>
+    </button>
+    <button class="nav-btn" id="nav-sources" onclick="showScreen('sources')">
+      <div class="nav-indicator"></div>
+      <span class="nav-icon">🔗</span>
+      <span class="nav-label">データ源</span>
+    </button>
+    <!-- 仕切り線付きテーマボタン -->
+    <button id="themeNavBtn" onclick="toggleThemePicker()">
+      <span class="nav-icon" id="themeIcon">☀️</span>
+      <span class="nav-label" id="themeLabel">テーマ</span>
+    </button>
+  </nav>
+
+</div><!-- /#app -->
+
+<!--
+  テーマUI は #app の外・body直下に配置。
+  position:fixed なので nav の transform stacking context の影響を受けない。
+-->
+<div id="themeOverlay" onclick="closeThemePicker()"></div>
+<div id="themeDropdown"></div>
+
+<script>
+/* ── 定数 ──────────────────────────────────────── */
+const PARTICIPANTS = [
+  {id:"foreign",       icon:"🌏",label:"外国人投資家",  color:"#0ea5e9",desc:"JPX売買・CFTC建玉"},
+  {id:"institutional", icon:"🏦",label:"機関投資家",    color:"#8b5cf6",desc:"年金・投信・ヘッジF"},
+  {id:"retail",        icon:"👥",label:"個人投資家",    color:"#f97316",desc:"信用残・恐怖指数"},
+  {id:"options",       icon:"📊",label:"オプション市場",color:"#10b981",desc:"PCR・VIX・ガンマ"},
+  {id:"algo",          icon:"🤖",label:"アルゴ・HFT",   color:"#ec4899",desc:"空売り比率・裁定残"},
+  {id:"corporate",     icon:"🏢",label:"事業法人",      color:"#f59e0b",desc:"自社株買い・TOB"},
+];
+
+// 市場定義
+const MARKETS = [
+  {id:"jp",     icon:"🇯🇵", label:"日本",       color:"#ef4444"},
+  {id:"us",     icon:"🇺🇸", label:"米国",       color:"#3b82f6"},
+  {id:"crypto", icon:"₿",   label:"仮想通貨",   color:"#f59e0b"},
+  {id:"comm",   icon:"🛢️",  label:"コモディティ",color:"#10b981"},
+];
+
+// 市場別の分析テーマ
+const ANALYSIS_THEMES_BY_MARKET = {
+  jp: [
+    {emoji:"📅", text:"日経平均の今週の方向性を総合判断"},
+    {emoji:"⚡", text:"日本株の急騰・急落の参加者別原因分析"},
+    {emoji:"💱", text:"円相場の変動が日本株に与える影響"},
+    {emoji:"🏦", text:"機関投資家の四半期末リバランス影響"},
+    {emoji:"🎯", text:"TOPIXのリスクオン/オフ度合いを評価"},
+    {emoji:"📰", text:"日銀政策決定会合後の投資家行動を予測"},
+    {emoji:"🌐", text:"米国市場の動向が日本株に波及する経路分析"},
+    {emoji:"🤖", text:"東証の裁定残と空売り比率から需給を読む"},
+  ],
+  us: [
+    {emoji:"📅", text:"S&P500の今週の方向性を総合判断"},
+    {emoji:"⚡", text:"米国株の急騰・急落の参加者別原因分析"},
+    {emoji:"🎯", text:"リスクオン/オフ度合いを評価"},
+    {emoji:"📰", text:"FOMC・CPIなど重要イベント後の投資家行動予測"},
+    {emoji:"💹", text:"S&P500の中期（1〜3ヶ月）トレンド分析"},
+    {emoji:"🏦", text:"機関投資家の四半期末リバランス影響"},
+    {emoji:"😨", text:"Fear & Greed指数と個人投資家センチメント分析"},
+    {emoji:"📊", text:"オプション市場のPCR・ガンマから方向性を読む"},
+  ],
+  crypto: [
+    {emoji:"₿",  text:"BTCの短期方向性を参加者別に分析"},
+    {emoji:"⚡", text:"仮想通貨市場の急騰・急落の原因分析"},
+    {emoji:"🎯", text:"クリプト市場のリスクオン/オフ度合いを評価"},
+    {emoji:"🐋", text:"クジラ（大口）の動向とオンチェーンシグナル"},
+    {emoji:"📰", text:"規制ニュースや重要イベントの影響を予測"},
+    {emoji:"🔄", text:"BTC・ETHドミナンスの変化とアルトコイン動向"},
+    {emoji:"💰", text:"グレースケール・ETFフローと機関投資家動向"},
+    {emoji:"😨", text:"Crypto Fear & Greedと個人センチメント分析"},
+  ],
+  comm: [
+    {emoji:"🛢️", text:"原油（WTI/Brent）の方向性を参加者別に分析"},
+    {emoji:"🥇", text:"金（ゴールド）の動向と安全資産としての位置づけ"},
+    {emoji:"⚡", text:"コモディティ急騰・急落の参加者別原因分析"},
+    {emoji:"🌾", text:"農産物（小麦・大豆・トウモロコシ）の需給分析"},
+    {emoji:"🎯", text:"コモディティ全体のリスクオン/オフ評価"},
+    {emoji:"📰", text:"地政学リスクとコモディティ価格への影響予測"},
+    {emoji:"💱", text:"ドル相場とコモディティの連動性を分析"},
+    {emoji:"🏦", text:"COT建玉から見るヘッジファンドの方向感"},
+  ],
+};
+
+const UI_THEMES = [
+  {attr:"",                icon:"☀️", label:"ライト",         dot:"#0ea5e9"},
+  {attr:"dark",            icon:"🌙", label:"ダーク",         dot:"#1e293b"},
+  {attr:"solarized-light", icon:"🌞", label:"Solarized Light",dot:"#b58900"},
+  {attr:"solarized-dark",  icon:"🌑", label:"Solarized Dark", dot:"#073642"},
+];
+
+// 市場別データソース
+const SOURCES_BY_MARKET = {
+  jp: [
+    {icon:"🌏",name:"JPX 投資部門別売買状況",url:"https://www.jpx.co.jp/markets/statistics-equities/investor-type/index.html",       tag:"外国人・機関", note:"毎週木曜更新"},
+    {icon:"👥",name:"日本証券金融（信用残）", url:"https://www.jsf.co.jp/smph/",                                                        tag:"個人投資家",   note:"毎営業日更新"},
+    {icon:"🤖",name:"東証 空売り比率",        url:"https://www.jpx.co.jp/markets/statistics-equities/short-selling/index.html",        tag:"アルゴ・HFT",  note:"翌営業日公表"},
+    {icon:"🏦",name:"日銀 金融政策",          url:"https://www.boj.or.jp/mopo/mpmsche_mts/index.htm",                                   tag:"マクロ",       note:"会合ごと"},
+    {icon:"💹",name:"TradingView JP",          url:"https://jp.tradingview.com/",                                                        tag:"テクニカル",   note:"無料で各指標確認"},
+  ],
+  us: [
+    {icon:"📈",name:"CFTC 建玉報告（COT）",  url:"https://www.cftc.gov/MarketReports/CommitmentsofTraders/index.htm",                  tag:"先物・外国人", note:"毎週金曜公開"},
+    {icon:"🏦",name:"SEC EDGAR（機関13F）",  url:"https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&type=13F&dateb=&owner=include&count=40",tag:"機関投資家",note:"四半期ごと"},
+    {icon:"😨",name:"CNN Fear & Greed Index",url:"https://edition.cnn.com/markets/fear-and-greed",                                      tag:"センチメント", note:"リアルタイム"},
+    {icon:"📊",name:"CBOE PCR・VIX",         url:"https://www.cboe.com/tradable_products/vix/",                                         tag:"オプション",   note:"VIX公式データ"},
+    {icon:"💹",name:"TradingView",           url:"https://jp.tradingview.com/",                                                         tag:"テクニカル",   note:"無料で各指標確認"},
+  ],
+  crypto: [
+    {icon:"😨",name:"Crypto Fear & Greed",  url:"https://alternative.me/crypto/fear-and-greed-index/",                                 tag:"センチメント", note:"リアルタイム"},
+    {icon:"🐋",name:"CryptoQuant（オンチェーン）",url:"https://cryptoquant.com/",                                                      tag:"大口動向",     note:"リアルタイム"},
+    {icon:"₿", name:"Glassnode（オンチェーン）", url:"https://glassnode.com/",                                                          tag:"オンチェーン", note:"有料プランあり"},
+    {icon:"📊",name:"Coinglass（先物・清算）",url:"https://www.coinglass.com/",                                                         tag:"先物",         note:"リアルタイム"},
+    {icon:"💹",name:"TradingView Crypto",   url:"https://jp.tradingview.com/crypto/",                                                   tag:"テクニカル",   note:"無料で確認可"},
+  ],
+  comm: [
+    {icon:"📈",name:"CFTC 建玉報告（COT）",  url:"https://www.cftc.gov/MarketReports/CommitmentsofTraders/index.htm",                  tag:"ヘッジファンド",note:"毎週金曜公開"},
+    {icon:"🛢️",name:"EIA 原油在庫統計",      url:"https://www.eia.gov/petroleum/supply/weekly/",                                       tag:"原油",         note:"毎週水曜更新"},
+    {icon:"🥇",name:"World Gold Council",    url:"https://www.gold.org/goldhub/data",                                                   tag:"金",           note:"月次・週次"},
+    {icon:"🌾",name:"USDA 農産物需給報告",   url:"https://www.usda.gov/topics/farming/crops",                                           tag:"農産物",       note:"月次（WASDE）"},
+    {icon:"💹",name:"TradingView Commodities",url:"https://jp.tradingview.com/markets/futures/quotes-metals/",                          tag:"テクニカル",   note:"無料で確認可"},
+  ],
+};
+
+/* ── 状態 ──────────────────────────────────────── */
+let selected       = new Set(["foreign","retail","options"]);
+let activeMarket   = "jp";        // デフォルトは日本
+let sourceMarket   = "jp";        // データ源フィルター
+let activeAnalysis = ANALYSIS_THEMES_BY_MARKET["jp"][0].text;
+let uiThemeIndex   = 0;
+let resultText     = "";
+
+/* ── 初期化 ────────────────────────────────────── */
+window.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('heroDate').textContent =
+    'MARKET INTELLIGENCE ◆ ' +
+    new Date().toLocaleDateString('ja-JP',{month:'long',day:'numeric',weekday:'short'});
+
+  // 市場セレクター（分析画面用）
+  buildMarketSelector('marketSelector', (id) => {
+    activeMarket   = id;
+    activeAnalysis = ANALYSIS_THEMES_BY_MARKET[id][0].text;
+    document.getElementById('customInput').value = '';
+    renderAnalysisThemes();
+  }, () => activeMarket);
+
+  // 市場フィルター（データ源画面用）
+  buildMarketSelector('sourceMarketFilter', (id) => {
+    sourceMarket = id;
+    renderSourceList();
+  }, () => sourceMarket);
+
+  // 参加者カード生成
+  const grid = document.getElementById('participantGrid');
+  PARTICIPANTS.forEach(p => {
+    const btn = document.createElement('button');
+    btn.className = 'p-card' + (selected.has(p.id) ? ' on' : '');
+    btn.id = 'p-' + p.id;
+    if (selected.has(p.id)) btn.style.borderColor = p.color;
+    btn.innerHTML =
+      `<div class="p-icon">${p.icon}</div>` +
+      `<div class="p-name" style="color:${selected.has(p.id)?p.color:'var(--text1)'}">${p.label}</div>` +
+      `<div class="p-desc">${p.desc}</div>` +
+      `<div class="p-check" style="background:${p.color}">✓</div>`;
+    btn.addEventListener('click', () => toggleParticipant(p.id, p.color));
+    grid.appendChild(btn);
+  });
+
+  renderAnalysisThemes();
+  renderSourceList();
+  updateBadge();
+  updateRunBtn();
+
+  // セッションにAPIキーが残っていれば復元
+  const savedKey = localStorage.getItem('anthropic_key');
+  if (savedKey) {
+    document.getElementById('apiKeyInput').value = savedKey;
+    document.getElementById('apiKeyStatus').textContent = '✅';
+    updateRunBtn();
+  }
+});
+
+// 市場セレクターボタンを汎用生成
+function buildMarketSelector(containerId, onSelect, getActive) {
+  const el = document.getElementById(containerId);
+  el.innerHTML = '';
+  MARKETS.forEach(m => {
+    const btn = document.createElement('button');
+    btn.className = 'mkt-btn' + (getActive() === m.id ? ' on' : '');
+    btn.id = containerId + '-' + m.id;
+    btn.innerHTML = `<span>${m.icon}</span><span>${m.label}</span>`;
+    btn.style.setProperty('--mkt-color', m.color);
+    btn.addEventListener('click', () => {
+      onSelect(m.id);
+      el.querySelectorAll('.mkt-btn').forEach(b => b.classList.remove('on'));
+      btn.classList.add('on');
+    });
+    el.appendChild(btn);
+  });
+}
+
+// データ源リスト描画
+function renderSourceList() {
+  const sl = document.getElementById('sourceList');
+  sl.innerHTML = '';
+  const sources = SOURCES_BY_MARKET[sourceMarket] || [];
+  sources.forEach(s => {
+    const a = document.createElement('a');
+    a.href=s.url; a.target='_blank'; a.className='source-card';
+    a.innerHTML =
+      `<div class="source-icon">${s.icon}</div>` +
+      `<div style="flex:1;min-width:0">` +
+        `<div class="source-name">${s.name}</div>` +
+        `<div class="source-meta">` +
+          `<span class="source-tag">${s.tag}</span>` +
+          `<span class="source-note">${s.note}</span>` +
+        `</div>` +
+      `</div>` +
+      `<div class="source-arrow">→</div>`;
+    sl.appendChild(a);
+  });
+}
+
+/* ── APIキー管理 ────────────────────────────────── */
+function saveApiKey() {
+  const val = document.getElementById('apiKeyInput').value.trim();
+  const status = document.getElementById('apiKeyStatus');
+  if (val.startsWith('sk-ant-')) {
+    localStorage.setItem('anthropic_key', val);
+    status.textContent = '✅';
+  } else if (val.length > 0) {
+    status.textContent = '❌';
+  } else {
+    status.textContent = '';
+  }
+  updateRunBtn();
+}
+
+function toggleApiKeyVisibility() {
+  const input = document.getElementById('apiKeyInput');
+  const btn   = document.getElementById('apiKeyToggle');
+  if (input.type === 'password') {
+    input.type = 'text'; btn.textContent = '隠す';
+  } else {
+    input.type = 'password'; btn.textContent = '表示';
+  }
+}
+
+function getApiKey() {
+  return localStorage.getItem('anthropic_key') ||
+         document.getElementById('apiKeyInput').value.trim();
+}
+
+function updateRunBtn() {
+  const key = getApiKey();
+  const btn = document.getElementById('runBtn');
+  btn.disabled = selected.size === 0 || !key.startsWith('sk-ant-');
+}
+
+/* ── 参加者トグル ──────────────────────────────── */
+function toggleParticipant(id, color) {
+  const btn = document.getElementById('p-' + id);
+  if (selected.has(id)) {
+    selected.delete(id);
+    btn.classList.remove('on');
+    btn.style.borderColor = 'var(--border)';
+    btn.querySelector('.p-name').style.color = 'var(--text1)';
+  } else {
+    selected.add(id);
+    btn.classList.add('on');
+    btn.style.borderColor = color;
+    btn.querySelector('.p-name').style.color = color;
+  }
+  updateBadge(); updateRunBtn();
+}
+function updateBadge() {
+  document.getElementById('selBadge').textContent = selected.size + ' / ' + PARTICIPANTS.length + ' 選択';
+}
+function onCustomInput() { renderAnalysisThemes(); }
+function updateRunBtn() {
+  document.getElementById('runBtn').disabled = (selected.size === 0);
+}
+
+/* ── 分析テーマレンダリング ────────────────────── */
+function renderAnalysisThemes() {
+  const custom = document.getElementById('customInput').value;
+  const themes = ANALYSIS_THEMES_BY_MARKET[activeMarket] || [];
+  const list = document.getElementById('themeList');
+  list.innerHTML = '';
+  themes.forEach(t => {
+    const btn = document.createElement('button');
+    btn.className = 't-btn' + (activeAnalysis===t.text && !custom ? ' on' : '');
+    btn.innerHTML = `<span class="t-emoji">${t.emoji}</span><span class="t-text">${t.text}</span>`;
+    btn.addEventListener('click', () => {
+      activeAnalysis = t.text;
+      document.getElementById('customInput').value = '';
+      renderAnalysisThemes();
+    });
+    list.appendChild(btn);
+  });
+}
+
+/* ── 分析実行 ──────────────────────────────────── */
+async function startAnalysis() {
+  const errEl = document.getElementById('homeError');
+  if (selected.size === 0) {
+    errEl.textContent = '⚠️ 参加者を1つ以上選んでください';
+    errEl.style.display = 'block'; return;
+  }
+  errEl.style.display = 'none';
+  const q = document.getElementById('customInput').value.trim() || activeAnalysis;
+
+  showScreen('result');
+  document.getElementById('nav-result').disabled = false;
+  document.getElementById('loaderEl').style.display  = 'flex';
+  document.getElementById('resultBody').style.display = 'none';
+  document.getElementById('resultError').style.display = 'none';
+  document.getElementById('copyBtn').style.display    = 'none';
+  document.getElementById('backBtn').style.display    = 'none';
+
+  const icons = [...selected].map(id => PARTICIPANTS.find(p=>p.id===id)?.icon).join(' ');
+  document.getElementById('resultMeta').textContent =
+    icons + ' ◆ ' + new Date().toLocaleDateString('ja-JP',{month:'long',day:'numeric',weekday:'short'});
+
+  try {
+    const res = await callClaude(selected, q);
+    resultText = res;
+    document.getElementById('loaderEl').style.display = 'none';
+    const body = document.getElementById('resultBody');
+    body.innerHTML = renderMd(res); body.style.display = 'block';
+    document.getElementById('copyBtn').style.display = 'inline-block';
+    document.getElementById('backBtn').style.display = 'block';
+  } catch(e) {
+    document.getElementById('loaderEl').style.display = 'none';
+    const err = document.getElementById('resultError');
+    err.textContent = '⚠️ エラー: ' + e.message; err.style.display = 'block';
+    document.getElementById('backBtn').style.display = 'block';
+  }
+}
+
+async function callClaude(sel, theme) {
+  const parts = [...sel].map(id => {
+    const p = PARTICIPANTS.find(x=>x.id===id);
+    return `・${p.label}（${p.desc}）`;
+  }).join('\n');
+
+  const mkt = MARKETS.find(m=>m.id===activeMarket);
+  const mktLabel = mkt ? `${mkt.icon} ${mkt.label}市場` : '市場全般';
+
+  const prompt = `あなたは経験豊富なテクニカルアナリスト兼マーケットストラテジストです。
+以下の条件で投資判断に資する分析を行ってください。
+
+【対象市場】${mktLabel}
+【分析対象の参加者】
+${parts}
+【テーマ】${theme}
+
+【出力形式（Markdown）】
+### 📌 総合センチメント
+（強気/中立/弱気 + 確信度 + 一言）
+### 🔍 参加者別の動向
+各グループの推定行動・シグナルを簡潔に
+### ⚠️ 注目シグナル（3〜4点）
+### 💡 投資戦略への示唆
+### 📅 次のチェックポイント
+
+※実際の最新データは各サイトで確認ください。本分析は枠組み提供を目的とします。`;
+
+  const apiKey = getApiKey();
+  if (!apiKey) throw new Error('APIキーが設定されていません');
+
+  const r = await fetch('https://api.anthropic.com/v1/messages', {
+    method:'POST',
+    headers:{
+      'Content-Type':'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-allow-browser': 'true',
+    },
+    body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:2500,messages:[{role:'user',content:prompt}]})
+  });
+  if (!r.ok) throw new Error('APIエラー ' + r.status);
+  const d = await r.json();
+  return d.content.map(b=>b.text||'').join('\n');
+}
+
+/* ── Markdownレンダラー ────────────────────────── */
+function renderMd(text) {
+  let html = '';
+  text.split('\n').forEach(line => {
+    if (/^### /.test(line))      html += `<h3>${esc(line.replace('### ',''))}</h3>`;
+    else if (/^## /.test(line))  html += `<h2 style="font-size:1rem;font-weight:700;color:var(--text1);margin-top:1rem">${esc(line.replace('## ',''))}</h2>`;
+    else if (/^[-・] /.test(line)) html += `<div class="bullet"><span style="color:var(--text2);font-size:0.88rem">${bold(esc(line.replace(/^[-・] /,'')))}</span></div>`;
+    else if (line.trim()==='')   html += '<div style="height:0.45rem"></div>';
+    else                          html += `<p>${bold(esc(line))}</p>`;
+  });
+  return html;
+}
+const esc  = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const bold = s => s.replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>');
+
+/* ── ナビ・ユーティリティ ──────────────────────── */
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('screen-'+name).classList.add('active');
+  const nb = document.getElementById('nav-'+name);
+  if (nb) nb.classList.add('active');
+  window.scrollTo(0,0);
+}
+function goHome() { resultText=''; showScreen('home'); }
+function copyResult() {
+  navigator.clipboard.writeText(resultText).then(() => {
+    const b = document.getElementById('copyBtn');
+    b.textContent='✓ コピー済み';
+    setTimeout(()=>b.textContent='📋 コピー',1500);
+  });
+}
+
+/* ════════════════════════════════════════════════
+   UIテーマ切替
+   ドロップダウンは body直下の #themeDropdown (position:fixed)
+   → nav の transform stacking context の外にあるため z-index が確実に効く
+════════════════════════════════════════════════ */
+function buildThemeDropdown() {
+  const dd = document.getElementById('themeDropdown');
+  dd.innerHTML = '';
+  UI_THEMES.forEach((t, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'ui-option' + (uiThemeIndex===i ? ' active' : '');
+    btn.innerHTML =
+      `<span class="ui-dot" style="background:${t.dot}"></span>` +
+      `<span>${t.icon} ${t.label}</span>` +
+      (uiThemeIndex===i ? '<span class="ui-check">✓</span>' : '');
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      applyUiTheme(i);
+    });
+    dd.appendChild(btn);
+  });
+}
+
+function toggleThemePicker() {
+  const dd  = document.getElementById('themeDropdown');
+  const ov  = document.getElementById('themeOverlay');
+  const nav = document.getElementById('themeNavBtn');
+  const isOpen = dd.classList.contains('open');
+  if (isOpen) {
+    dd.classList.remove('open');
+    ov.classList.remove('open');
+    nav.classList.remove('open');
+  } else {
+    buildThemeDropdown();
+    dd.classList.add('open');
+    ov.classList.add('open');
+    nav.classList.add('open');
+  }
+}
+
+function closeThemePicker() {
+  document.getElementById('themeDropdown').classList.remove('open');
+  document.getElementById('themeOverlay').classList.remove('open');
+  document.getElementById('themeNavBtn').classList.remove('open');
+}
+
+function applyUiTheme(index) {
+  uiThemeIndex = index;
+  const t = UI_THEMES[index];
+  // ← ここが核心：attr='' のときは属性を削除してライトテーマに戻す
+  if (t.attr === '') {
+    document.documentElement.removeAttribute('data-theme');
+  } else {
+    document.documentElement.setAttribute('data-theme', t.attr);
+  }
+  document.getElementById('themeIcon').textContent  = t.icon;
+  document.getElementById('themeLabel').textContent = t.label;
+  closeThemePicker();
+  // 参加者カードの文字色を現在のテーマで再適用
+  PARTICIPANTS.forEach(p => {
+    const card = document.getElementById('p-' + p.id);
+    if (!card) return;
+    card.querySelector('.p-name').style.color = selected.has(p.id) ? p.color : 'var(--text1)';
+  });
+}
+</script>
+</body>
+</html>
